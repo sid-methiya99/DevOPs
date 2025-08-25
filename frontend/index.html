@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Second Brain</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-brain"></i>
+                <h1>Second Brain</h1>
+            </div>
+            <nav class="nav">
+                <button class="nav-btn active" data-page="dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    Dashboard
+                </button>
+                <button class="nav-btn" data-page="notes">
+                    <i class="fas fa-sticky-note"></i>
+                    Notes
+                </button>
+                <button class="nav-btn" data-page="tasks">
+                    <i class="fas fa-tasks"></i>
+                    Tasks
+                </button>
+                <button class="nav-btn" data-page="profile">
+                    <i class="fas fa-user"></i>
+                    Profile
+                </button>
+            </nav>
+            <div class="user-info">
+                <span id="userName">Welcome</span>
+                <button id="logoutBtn" class="btn-secondary">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard Page -->
+            <div id="dashboard" class="page active">
+                <h2>Dashboard</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <i class="fas fa-sticky-note"></i>
+                        <h3 id="totalNotes">0</h3>
+                        <p>Total Notes</p>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-tasks"></i>
+                        <h3 id="totalTasks">0</h3>
+                        <p>Total Tasks</p>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-check-circle"></i>
+                        <h3 id="completedTasks">0</h3>
+                        <p>Completed Tasks</p>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h3 id="overdueTasks">0</h3>
+                        <p>Overdue Tasks</p>
+                    </div>
+                </div>
+                
+                <div class="dashboard-grid">
+                    <div class="dashboard-section">
+                        <h3>Recent Notes</h3>
+                        <div id="recentNotes" class="content-list"></div>
+                    </div>
+                    <div class="dashboard-section">
+                        <h3>Upcoming Tasks</h3>
+                        <div id="upcomingTasks" class="content-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes Page -->
+            <div id="notes" class="page">
+                <div class="page-header">
+                    <h2>Notes</h2>
+                    <button id="addNoteBtn" class="btn-primary">
+                        <i class="fas fa-plus"></i>
+                        Add Note
+                    </button>
+                </div>
+                
+                <div class="filters">
+                    <input type="text" id="noteSearch" placeholder="Search notes..." class="search-input">
+                    <select id="noteCategory" class="filter-select">
+                        <option value="">All Categories</option>
+                        <option value="personal">Personal</option>
+                        <option value="work">Work</option>
+                        <option value="study">Study</option>
+                        <option value="ideas">Ideas</option>
+                        <option value="journal">Journal</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                
+                <div id="notesList" class="notes-grid"></div>
+            </div>
+
+            <!-- Tasks Page -->
+            <div id="tasks" class="page">
+                <div class="page-header">
+                    <h2>Tasks</h2>
+                    <button id="addTaskBtn" class="btn-primary">
+                        <i class="fas fa-plus"></i>
+                        Add Task
+                    </button>
+                </div>
+                
+                <div class="filters">
+                    <input type="text" id="taskSearch" placeholder="Search tasks..." class="search-input">
+                    <select id="taskStatus" class="filter-select">
+                        <option value="">All Status</option>
+                        <option value="todo">To Do</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="review">Review</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                    <select id="taskPriority" class="filter-select">
+                        <option value="">All Priorities</option>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
+                    </select>
+                </div>
+                
+                <div id="tasksList" class="tasks-list"></div>
+            </div>
+
+            <!-- Profile Page -->
+            <div id="profile" class="page">
+                <h2>Profile</h2>
+                <div class="profile-form">
+                    <div class="form-group">
+                        <label for="profileFirstName">First Name</label>
+                        <input type="text" id="profileFirstName" class="input-field">
+                    </div>
+                    <div class="form-group">
+                        <label for="profileLastName">Last Name</label>
+                        <input type="text" id="profileLastName" class="input-field">
+                    </div>
+                    <div class="form-group">
+                        <label for="profileEmail">Email</label>
+                        <input type="email" id="profileEmail" class="input-field" readonly>
+                    </div>
+                    <button id="updateProfileBtn" class="btn-primary">Update Profile</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Add/Edit Note Modal -->
+    <div id="noteModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="noteModalTitle">Add Note</h3>
+                <button class="close-btn" onclick="closeModal('noteModal')">&times;</button>
+            </div>
+            <form id="noteForm">
+                <div class="form-group">
+                    <label for="noteTitle">Title</label>
+                    <input type="text" id="noteTitle" class="input-field" required>
+                </div>
+                <div class="form-group">
+                    <label for="noteContent">Content</label>
+                    <textarea id="noteContent" class="input-field" rows="6" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="noteCategory">Category</label>
+                    <select id="noteCategorySelect" class="input-field">
+                        <option value="personal">Personal</option>
+                        <option value="work">Work</option>
+                        <option value="study">Study</option>
+                        <option value="ideas">Ideas</option>
+                        <option value="journal">Journal</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="noteTags">Tags (comma separated)</label>
+                    <input type="text" id="noteTags" class="input-field" placeholder="tag1, tag2, tag3">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('noteModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Note</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add/Edit Task Modal -->
+    <div id="taskModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="taskModalTitle">Add Task</h3>
+                <button class="close-btn" onclick="closeModal('taskModal')">&times;</button>
+            </div>
+            <form id="taskForm">
+                <div class="form-group">
+                    <label for="taskTitle">Title</label>
+                    <input type="text" id="taskTitle" class="input-field" required>
+                </div>
+                <div class="form-group">
+                    <label for="taskDescription">Description</label>
+                    <textarea id="taskDescription" class="input-field" rows="4"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="taskStatus">Status</label>
+                        <select id="taskStatusSelect" class="input-field">
+                            <option value="todo">To Do</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="review">Review</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="taskPriority">Priority</label>
+                        <select id="taskPrioritySelect" class="input-field">
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="taskDueDate">Due Date</label>
+                    <input type="datetime-local" id="taskDueDate" class="input-field">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('taskModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Login to Second Brain</h3>
+            </div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" class="input-field" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" class="input-field" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="showRegisterForm()">Register</button>
+                    <button type="submit" class="btn-primary">Login</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div id="registerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Register for Second Brain</h3>
+            </div>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="registerUsername">Username</label>
+                    <input type="text" id="registerUsername" class="input-field" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerEmail">Email</label>
+                    <input type="email" id="registerEmail" class="input-field" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">Password</label>
+                    <input type="password" id="registerPassword" class="input-field" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerFirstName">First Name</label>
+                    <input type="text" id="registerFirstName" class="input-field" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerLastName">Last Name</label>
+                    <input type="text" id="registerLastName" class="input-field" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="showLoginForm()">Login</button>
+                    <button type="submit" class="btn-primary">Register</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
