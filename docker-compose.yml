@@ -20,9 +20,7 @@ services:
 
   # Backend API
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ${DOCKER_HUB_USERNAME:-your-dockerhub-username}/second-brain-backend:${DEPLOY_TAG:-latest}
     container_name: second-brain-backend
     restart: unless-stopped
     environment:
@@ -36,15 +34,10 @@ services:
       - mongodb
     networks:
       - second-brain-network
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
 
   # Frontend
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: ${DOCKER_HUB_USERNAME:-your-dockerhub-username}/second-brain-frontend:${DEPLOY_TAG:-latest}
     container_name: second-brain-frontend
     restart: unless-stopped
     ports:

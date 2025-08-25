@@ -1,136 +1,143 @@
 pipeline {
     agent any
-    
-    environment {
-        DOCKER_IMAGE_BACKEND = 'second-brain-backend'
-        DOCKER_IMAGE_FRONTEND = 'second-brain-frontend'
-        DOCKER_TAG = "${env.BUILD_NUMBER}"
-        DOCKER_REGISTRY = 'your-dockerhub-username'
+
+    triggers {
+        githubPush()
     }
-    
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+    }
+
+    environment {
+        // Set your Docker Hub username
+        DOCKER_HUB_USERNAME = 'sidmethiya99'
+        BACKEND_IMAGE = 'second-brain-backend'
+        FRONTEND_IMAGE = 'second-brain-frontend'
+        TAG_NAME = "${env.BUILD_NUMBER}"
+        DEPLOY_TAG = 'latest'
+        DOCKER_CRED_ID = 'docker-hub-credentials' // Jenkins credentials ID ()
+    }
+
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
-        
-        stage('Install Dependencies') {
-            steps {
-                dir('backend') {
-                    sh 'npm install'
-                }
-            }
-        }
-        
-        stage('Run Tests') {
-            steps {
-                dir('backend') {
-                    sh 'npm test || echo "No tests configured"'
-                }
-            }
-        }
-        
-        stage('Build Docker Images') {
+
+        stage('Build Images') {
             parallel {
-                stage('Build Backend Image') {
+                stage('Build Backend') {
                     steps {
                         dir('backend') {
                             sh """
-                                docker build -t ${DOCKER_REGISTRY}/${DOCKER_IMAGE_BACKEND}:${DOCKER_TAG} .
-                                docker tag ${DOCKER_REGISTRY}/${DOCKER_IMAGE_BACKEND}:${DOCKER_TAG} ${DOCKER_REGISTRY}/${DOCKER_IMAGE_BACKEND}:latest
+                                docker build -t ${DOCKER_HUB_USERNAME}/${BACKEND_IMAGE}:${TAG_NAME} .
+                                docker tag ${DOCKER_HUB_USERNAME}/${BACKEND_IMAGE}:${TAG_NAME} ${DOCKER_HUB_USERNAME}/${BACKEND_IMAGE}:${DEPLOY_TAG}
                             """
                         }
                     }
                 }
-                stage('Build Frontend Image') {
+                stage('Build Frontend') {
                     steps {
                         dir('frontend') {
                             sh """
-                                docker build -t ${DOCKER_REGISTRY}/${DOCKER_IMAGE_FRONTEND}:${DOCKER_TAG} .
-                                docker tag ${DOCKER_REGISTRY}/${DOCKER_IMAGE_FRONTEND}:${DOCKER_TAG} ${DOCKER_REGISTRY}/${DOCKER_IMAGE_FRONTEND}:latest
+                                docker build -t ${DOCKER_HUB_USERNAME}/${FRONTEND_IMAGE}:${TAG_NAME} .
+                                docker tag ${DOCKER_HUB_USERNAME}/${FRONTEND_IMAGE}:${TAG_NAME} ${DOCKER_HUB_USERNAME}/${FRONTEND_IMAGE}:${DEPLOY_TAG}
                             """
                         }
                     }
                 }
             }
         }
-        
-        stage('Push to Docker Hub') {
-            when {
-                branch 'main'
-            }
-            steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                        sh 'echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin'
-                        
+
+        stage('Smoke Test Containers') {
+            parallel {
+                stage('Test Backend') {
+                    steps {
                         sh """
-                            docker push ${DOCKER_REGISTRY}/${DOCKER_IMAGE_BACKEND}:${DOCKER_TAG}
-                            docker push ${DOCKER_REGISTRY}/${DOCKER_IMAGE_BACKEND}:latest
-                            docker push ${DOCKER_REGISTRY}/${DOCKER_IMAGE_FRONTEND}:${DOCKER_TAG}
-                            docker push ${DOCKER_REGISTRY}/${DOCKER_IMAGE_FRONTEND}:latest
+                            docker run -d --rm --name sb-backend-test -p 5001:5000 \
+                              -e MONGODB_URI=mongodb://localhost:27017/second-brain-test \
+                              ${DOCKER_HUB_USERNAME}/${BACKEND_IMAGE}:${TAG_NAME}
+                            sleep 5
+                            curl -fsS http://localhost:5001/health
+                            docker stop sb-backend-test || true
+                        """
+                    }
+                }
+                stage('Test Frontend') {
+                    steps {
+                        sh """
+                            docker run -d --rm --name sb-frontend-test -p 3001:80 \
+                              ${DOCKER_HUB_USERNAME}/${FRONTEND_IMAGE}:${TAG_NAME}
+                            sleep 3
+                            curl -IfsS http://localhost:3001
+                            docker stop sb-frontend-test || true
                         """
                     }
                 }
             }
         }
-        
-        stage('Deploy to Production') {
-            when {
-                branch 'main'
-            }
+
+        stage('Push to Docker Hub') {
             steps {
-                script {
-                    // Update docker-compose with new image tags
+                withCredentials([usernamePassword(credentialsId: DOCKER_CRED_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASSWORD')]) {
                     sh """
-                        sed -i 's|image: ${DOCKER_REGISTRY}/${DOCKER_IMAGE_BACKEND}:.*|image: ${DOCKER_REGISTRY}/${DOCKER_IMAGE_BACKEND}:${DOCKER_TAG}|g' docker-compose.yml
-                        sed -i 's|image: ${DOCKER_REGISTRY}/${DOCKER_IMAGE_FRONTEND}:.*|image: ${DOCKER_REGISTRY}/${DOCKER_IMAGE_FRONTEND}:${DOCKER_TAG}|g' docker-compose.yml
-                    """
-                    
-                    // Deploy using docker-compose
-                    sh """
-                        docker-compose down
-                        docker-compose pull
-                        docker-compose up -d
+                        echo $DOCKER_PASSWORD | docker login -u $DOCKER_USER --password-stdin
+                        docker push ${DOCKER_HUB_USERNAME}/${BACKEND_IMAGE}:${TAG_NAME}
+                        docker push ${DOCKER_HUB_USERNAME}/${BACKEND_IMAGE}:${DEPLOY_TAG}
+                        docker push ${DOCKER_HUB_USERNAME}/${FRONTEND_IMAGE}:${TAG_NAME}
+                        docker push ${DOCKER_HUB_USERNAME}/${FRONTEND_IMAGE}:${DEPLOY_TAG}
+                        docker logout || true
                     """
                 }
             }
         }
-        
-        stage('Health Check') {
-            when {
-                branch 'main'
-            }
+
+        stage('Deploy') {
             steps {
                 script {
-                    // Wait for services to be ready
-                    sleep 30
-                    
-                    // Check if services are responding
+                    // Generate a .env for docker compose image substitution
                     sh """
-                        curl -f http://localhost/health || exit 1
-                        curl -f http://localhost:5000/health || exit 1
+                        cat > .env <<EOF
+DOCKER_HUB_USERNAME=${DOCKER_HUB_USERNAME}
+BACKEND_IMAGE=${BACKEND_IMAGE}
+FRONTEND_IMAGE=${FRONTEND_IMAGE}
+DEPLOY_TAG=${DEPLOY_TAG}
+EOF
+                    """
+
+                    // Re-deploy using docker compose and the pulled images
+                    sh """
+                        docker compose down || true
+                        docker compose pull || true
+                        docker compose up -d
                     """
                 }
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                sleep 10
+                sh """
+                    curl -f http://localhost:3000/health
+                    curl -f http://localhost:5000/health
+                """
             }
         }
     }
-    
+
     post {
         always {
-            // Clean up Docker images
-            sh """
-                docker image prune -f
-                docker system prune -f
-            """
+            echo "Pipeline finished! Status: ${currentBuild.result}"
         }
         success {
-            echo 'Pipeline completed successfully!'
+            echo 'Deployment complete. Your changes are live.'
         }
         failure {
-            echo 'Pipeline failed!'
-            // Send notification (email, Slack, etc.)
+            echo 'Deployment failed. Check logs.'
         }
     }
 }

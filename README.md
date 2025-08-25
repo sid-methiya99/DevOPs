@@ -118,3 +118,4 @@ This project is licensed under the MIT License.
 ## 🆘 Support
 
 For support, email support@secondbrain.com or create an issue in the repository.
+# Test Jenkins GitHub Integration
