@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile.jenkins
     container_name: ci-jenkins
     ports:
-      - "8080:8080"
+      - "8081:8080"
       - "50000:50000"
     user: root
     environment:
